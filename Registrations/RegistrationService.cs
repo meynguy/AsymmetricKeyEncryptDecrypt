@@ -1,18 +1,12 @@
-﻿using System.Text.Json;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace KeyEncryptDecrypt.Registrations
 {
     public class RegistrationService
     {
-        private static string ToBase64Standard(string base64)
-        {
-            // Convert URL-safe base64 back to standard base64
-            return base64.Replace('-', '+').Replace('_', '/').PadRight(base64.Length + (4 - base64.Length % 4) % 4, '=');
-        }
-
         public byte[] StorePublicKey(string publicKeyJsonAsBase64)
         {
             string plainText = "Hello World!# Awesome";
@@ -23,25 +17,18 @@ namespace KeyEncryptDecrypt.Registrations
                 // Save the public key as needed
                 // For example, you can store it in a database or cache
 
-                RSA rsa = RSA.Create();
-
                 // Deserialize the JWK
                 PublicKey publicKey = JsonSerializer.Deserialize<PublicKey>(publicKeyJson);
 
                 if (publicKey.IsEncryptionAllowed)
                 {
+                    RSA rsa = RSA.Create();
                     // Extract key components
-                    byte[] modulus = Convert.FromBase64String(ToBase64Standard(publicKey.N));
-                    byte[] exponent = Convert.FromBase64String(ToBase64Standard(publicKey.E));
-
-
-                    RSAParameters rsaParameters = new RSAParameters
+                    rsa.ImportParameters(new()
                     {
-                        Modulus = modulus,
-                        Exponent = exponent
-                    };
-
-                    rsa.ImportParameters(rsaParameters);
+                        Modulus = publicKey.Modulus,
+                        Exponent = publicKey.Exponent
+                    });
                     byte[] messageBytes = Encoding.UTF8.GetBytes(plainText);
                     return rsa.Encrypt(messageBytes, publicKey.RSAEncryptionPadding);
                 }
@@ -74,6 +61,10 @@ namespace KeyEncryptDecrypt.Registrations
 
         [JsonPropertyName("n")]
         public string N { get; set; }
+
+        public byte[] Modulus => Convert.FromBase64String(ToBase64Standard(N));
+        public byte[] Exponent => Convert.FromBase64String(ToBase64Standard(E));
+        private static string ToBase64Standard(string base64) => base64.Replace('-', '+').Replace('_', '/').PadRight(base64.Length + (4 - base64.Length % 4) % 4, '=');
 
         public RSAEncryptionPadding RSAEncryptionPadding
         {
