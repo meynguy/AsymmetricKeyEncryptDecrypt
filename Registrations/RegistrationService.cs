@@ -1,21 +1,12 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using System.Text.Json;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace KeyEncryptDecrypt.Registrations
 {
     public class RegistrationService
     {
-        private static string ToBase64UrlSafe(string base64)
-        {
-            // Convert the base64 string to URL-safe base64
-            return base64.Replace('+', '-').Replace('/', '_').TrimEnd('=');
-        }
-
         private static string ToBase64Standard(string base64)
         {
             // Convert URL-safe base64 back to standard base64
@@ -35,7 +26,7 @@ namespace KeyEncryptDecrypt.Registrations
                 RSA rsa = RSA.Create();
 
                 // Deserialize the JWK
-                PublicKey publicKey = JsonConvert.DeserializeObject<PublicKey>(publicKeyJson);
+                PublicKey publicKey = JsonSerializer.Deserialize<PublicKey>(publicKeyJson);
 
                 // Extract key components
                 byte[] modulus = Convert.FromBase64String(ToBase64Standard(publicKey.N));
@@ -50,7 +41,7 @@ namespace KeyEncryptDecrypt.Registrations
 
                 rsa.ImportParameters(rsaParameters);
                 byte[] messageBytes = Encoding.UTF8.GetBytes(plainText);
-                return  rsa.Encrypt(messageBytes, RSAEncryptionPadding.OaepSHA256);
+                return  rsa.Encrypt(messageBytes, publicKey.RSAEncryptionPadding);
 
             }
             catch (Exception ex)
@@ -81,6 +72,19 @@ namespace KeyEncryptDecrypt.Registrations
 
         [JsonPropertyName("n")]
         public string N { get; set; }
+
+        public RSAEncryptionPadding RSAEncryptionPadding
+        {
+            get
+            {
+                return Algorithm switch
+                {
+                    "RSA-OAEP-256" => RSAEncryptionPadding.OaepSHA256,
+                    _ => throw new NotSupportedException($"Unsupported algorithm: {Algorithm}"),// Handle other cases or throw an exception if necessary
+                };
+            }
+        }
     }
+
 
 }
