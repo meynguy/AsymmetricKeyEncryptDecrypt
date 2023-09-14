@@ -28,21 +28,23 @@ namespace KeyEncryptDecrypt.Registrations
                 // Deserialize the JWK
                 PublicKey publicKey = JsonSerializer.Deserialize<PublicKey>(publicKeyJson);
 
-                // Extract key components
-                byte[] modulus = Convert.FromBase64String(ToBase64Standard(publicKey.N));
-                byte[] exponent = Convert.FromBase64String(ToBase64Standard(publicKey.E));
-
-
-                RSAParameters rsaParameters = new RSAParameters
+                if (publicKey.IsEncryptionAllowed)
                 {
-                    Modulus = modulus,
-                    Exponent = exponent
-                };
+                    // Extract key components
+                    byte[] modulus = Convert.FromBase64String(ToBase64Standard(publicKey.N));
+                    byte[] exponent = Convert.FromBase64String(ToBase64Standard(publicKey.E));
 
-                rsa.ImportParameters(rsaParameters);
-                byte[] messageBytes = Encoding.UTF8.GetBytes(plainText);
-                return  rsa.Encrypt(messageBytes, publicKey.RSAEncryptionPadding);
 
+                    RSAParameters rsaParameters = new RSAParameters
+                    {
+                        Modulus = modulus,
+                        Exponent = exponent
+                    };
+
+                    rsa.ImportParameters(rsaParameters);
+                    byte[] messageBytes = Encoding.UTF8.GetBytes(plainText);
+                    return rsa.Encrypt(messageBytes, publicKey.RSAEncryptionPadding);
+                }
             }
             catch (Exception ex)
             {
@@ -84,6 +86,8 @@ namespace KeyEncryptDecrypt.Registrations
                 };
             }
         }
+
+        public bool IsEncryptionAllowed => KeyOps.Contains("encrypt");
     }
 
 
