@@ -105,6 +105,7 @@ async function main() {
 
     const importedPrivateKey = await importDecryptionPrivateKey(JSON.parse(localStorage.getItem("ED-privateKey")));
     if (await decryptMessage(messageCipher, importedPrivateKey) === message) {
+        
         fetch('storePublicKey', {
             method: 'POST',
             headers: {
@@ -115,8 +116,14 @@ async function main() {
             })
         }).then(response => response.json())
             .then(data => {
-                console.log(data);
-                decryptMessage(data.EncryptedMessage, importedPrivateKey).then(plainText => {
+                var binaryString = window.atob(data.EncryptedMessage);
+                var len = binaryString.length;
+                var bytes = new Uint8Array(len);
+
+                for (var i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                decryptMessage(bytes, importedPrivateKey).then(plainText => {
                     console.log(plainText);
                 });
                 

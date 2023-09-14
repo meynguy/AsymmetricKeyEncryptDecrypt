@@ -1,4 +1,8 @@
-﻿using System.Text;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -6,28 +10,54 @@ namespace KeyEncryptDecrypt.Registrations
 {
     public class RegistrationService
     {
-
-        public string StorePublicKey(string publicKeyJsonAsBase64)
+        private static string ToBase64UrlSafe(string base64)
         {
-            string plainText = "Hello World!#";
-            string cipherText = string.Empty;
+            // Convert the base64 string to URL-safe base64
+            return base64.Replace('+', '-').Replace('/', '_').TrimEnd('=');
+        }
+
+        private static string ToBase64Standard(string base64)
+        {
+            // Convert URL-safe base64 back to standard base64
+            return base64.Replace('-', '+').Replace('_', '/').PadRight(base64.Length + (4 - base64.Length % 4) % 4, '=');
+        }
+
+        public byte[] StorePublicKey(string publicKeyJsonAsBase64)
+        {
+            string plainText = "Hello World!# Awesome";
             try
             {
+                // Convert the base64-encoded public key back to JSON format
+                string publicKeyJson = Encoding.UTF8.GetString(Convert.FromBase64String(publicKeyJsonAsBase64));
+                // Save the public key as needed
+                // For example, you can store it in a database or cache
+
+                RSA rsa = RSA.Create();
+
+                // Deserialize the JWK
+                PublicKey publicKey = JsonConvert.DeserializeObject<PublicKey>(publicKeyJson);
+
+                // Extract key components
+                byte[] modulus = Convert.FromBase64String(ToBase64Standard(publicKey.N));
+                byte[] exponent = Convert.FromBase64String(ToBase64Standard(publicKey.E));
 
 
-                var publicKeyJsonBytes = Convert.FromBase64String(publicKeyJsonAsBase64);
-                var publicKeyJson = Encoding.Default.GetString(publicKeyJsonBytes);
-                // Deserialize the JSON representation of publicKey into an instance of ECDsaCngPublicKey
-                var publicKey = JsonSerializer.Deserialize<PublicKey>(publicKeyJson);
+                RSAParameters rsaParameters = new RSAParameters
+                {
+                    Modulus = modulus,
+                    Exponent = exponent
+                };
+
+                rsa.ImportParameters(rsaParameters);
+                byte[] messageBytes = Encoding.UTF8.GetBytes(plainText);
+                return  rsa.Encrypt(messageBytes, RSAEncryptionPadding.OaepSHA256);
 
             }
-            catch
+            catch (Exception ex)
             {
-                // An exception occurred during the signature verification or the publicKey is not in the correct format
-                // Return false to indicate that the signature is not valid
-
+                // Handle any errors and return an error response
             }
-            return cipherText;
+            return Array.Empty<byte>();
         }
     }
 
@@ -36,7 +66,7 @@ namespace KeyEncryptDecrypt.Registrations
     {
         [JsonPropertyName("alg")]
         public string Algorithm { get; set; }
-        
+
         [JsonPropertyName("e")]
         public string E { get; set; }
 
